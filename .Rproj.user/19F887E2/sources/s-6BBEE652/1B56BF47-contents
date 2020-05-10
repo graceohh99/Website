@@ -20,3 +20,7 @@ git add . #add all files in repository to be uploaded
 git commit -m "first website commit"
 git remote add origin https://github.com/graceohh99/Website.git #re
 git push origin master
+
+git remote rm origin
+git remote add origin https://github.com/graceohh99/Website.git (Links to an external site.)
+git push -u origin master
