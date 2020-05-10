@@ -1,0 +1,187 @@
+---
+title: "Project 1"
+author: "Grace Oh (geo344)"
+date: "3/11/2020"
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#Grace Oh (geo344)
+library(ggplot2)
+library(dplyr)
+library(tidyverse)
+```
+
+```{r}
+#Data Sets:
+adult_obese<-read.csv("adult_obese.csv")
+glimpse(adult_obese)
+```
+
+```{R}
+data<-read.csv("data.csv")
+glimpse(data)
+```
+
+```{R}
+#Introduction: 
+
+## The two datasets I chose are "adult_obese" and "data". The "adult_obese" dataset shows the percentage of the population that is obese in every state in 2014. There are four variables: "Location" (state), "Value" (Percentage of population considered obese), "95% CI" (confidence interval), "Sample Size" (sample size). This data was obtained from the Center of Disease Control. The "data" dataset shows four socioeconomic variables for every state in 2014. The variables in this dataset include "State" (state), "Percent Educational Attainment" (percentage of the population that have a Bachelor's degree or higher),"Peace Index" (determined by taking the inverse of violence/crimes in the area, a higher number indicates a more peaceful state), "Percent Above Poverty Rate" (percentage of households living above the poverty line), and "Percent Non-religious" (percentage of population that do not identify as highly religious). This data was obtained based on responses from the American Community Survey, Vision of Humanity, United States Census Bureau, and the Pew Research Center, respectively. 
+
+##These two datasets are interesting to me because the percentage of obesity in the United States is increasing. As a potential healthcare provider, I would like to look at the factors that are associated with obesity and am interested in looking at how the data differs state to state. I predict that there will be a negative correlation/association between percentage of the population that are considered obese and the percent above poverty rate. If an individual is making well above the poverty rate, they probably have a stable, high paying job, which allows them to have the money and time to buy organic and healthier foods. 
+```
+
+```{R}
+#Joining
+join<-adult_obese%>%inner_join(data, by=c("Location"="State"))
+
+# I performed an inner join on my datasets to keep only the rows that have a match on the ID variables. By doing this, I dropped none of my observations in my "data" dataset and dropped 5 observations in my "adult_obese" dataset which were the U.S. territories. I dropped these observations because I am focusing on the 50 states. 
+```
+
+
+
+
+
+```{r}
+#Wrangling
+
+#dplyr functions
+#converting a numeric variable into categorical 
+joined<- join%>%rename("percentedu_attain"= Percent.Educational.Attainment, "percentabove_pov" = Percent.Above.Poverty.Rate,"percentpeace"= Percent.Peace.Index, "percentnon"=Percent.Non.religious)
+
+summary(joined$`percentnon`)
+summary(joined$Value)
+summary(joined$`percentpeace`)
+summary(joined$`percentedu_attain`)
+summary(joined$`percentabove_pov`)
+
+#mutating newly made categorical variables into dataset
+joined <- joined%>%mutate(nonreligious_cat=case_when(percentnon>51.75 ~ "high",37<=percentnon & percentnon <=51.75 ~ "med", percentnon <37.5 ~ "low" ))
+joined<-joined%>%mutate(percentpeace_cat=case_when(percentpeace>57.95 ~ "high", 37.27<= percentpeace & percentpeace <= 57.95 ~ "med", percentpeace < 37.27 ~ "low"))
+
+#states in the middle 50% percent educational attainment
+joined%>%filter(between(percentedu_attain, 24.15, 30.35))
+
+#states in the middle 50% percent above poverty (relative to other states)
+joined%>%filter(between(percentabove_pov, 82.95, 87.88))
+
+#obesity values of states considered "low" in the percent peace index in descending order
+joined%>%filter(percentpeace_cat=="low")%>%select(Value, Location)%>%arrange(desc(Value))
+
+#percentage peace index of states that have a small population considering themselves non religious
+joined%>%filter(nonreligious_cat=="low")%>%select(percentpeace_cat,Location)%>%arrange(desc(percentpeace_cat))
+
+#states that have a greater obesity value than the median
+joined%>%filter(Value>29.38)%>%select(Location, Value)%>%arrange(Value)
+
+#mean and standard deviations of states in each category of the percentage peace index
+joined%>%group_by(percentpeace_cat)%>%summarise(mean_value=mean(Value, na.rm = T), sd_value=sd(Value, na.rm=T))
+
+#Summary Statistics 
+
+#correlation matrices between numerical variables
+joined%>%summarise(cor(percentedu_attain, Value))
+joined%>%summarise(cor(percentabove_pov, Value))
+joined%>%summarise(cor(percentpeace, Value))
+joined%>%summarise(cor(percentnon, Value))
+
+#mean and standard deviations percent peace indexes on nonrelgious category
+joined%>%group_by(nonreligious_cat)%>%summarise(mean_percentpeace=mean(percentpeace, na.rm=T), sd_percentpeace=sd(percentpeace, na.rm=T))
+
+#mean and standard deviations percent educational attainment on nonrelgious category
+joined%>%group_by(nonreligious_cat, percentpeace_cat)%>%summarise(mean_percentedu=mean(percentedu_attain, na.rm=T))
+
+#min, max, Q3, sd, median, and var of numeric variables
+joined%>%summarise_if(is.numeric, list(min=min, max=max), na.rm=T)
+joined%>%summarise_if(is.numeric, list(Q3=quantile), probs=.75, na.rm=T)
+joined%>%summarise_if(is.numeric, list(sd=sd), na.rm=T)
+joined%>%summarise_if(is.numeric, list(median=median), probs=.5, na.rm=T)
+joined%>%summarise_if(is.numeric, list(var=var), na.rm=T)
+
+#mean obesity value of nation
+joined%>%summarize(mean(Value, na.rm=T), n(), n_distinct(Location))
+
+## I used the "summary" function on all my numerical variables to see the min, 1st quartile, median, mean, 3rd quartile, and max. I used the results to set the boundaries for my new categorical variables. I assigned each observation to either "high", "med", "low" and mutated it into my "join" data as categorical variables.I then used my "filter" and "between" function to show the states that had percent educational attainment values between 24.15% (Q1) and 30.35% (Q3) to show the states in the middle 50% of the nation that have a bachelor's degree or higher. Similarily,  I used my "filter" and "between" function to show the states that had a percent above poverty values betweem 82.95% (Q1) and 87.88% (Q3) to show the middle 50% of the nation that live above the poverty level.I then filtered out states from the "low" category of the percent peace index and arranged their obesity percentage values in descending order. This shows that Arkansas has the highest percentage of people considered obese from the low percent peace index states with a 35.9% obesity value and Florida with the lowest percentage with 26.2%. Then, I filtered out the states that have low proportion of the population that considered themselves non religious and displayed their percent peace index. Most states that have low proportion of the population that consider themselves non religious have either a low or medium percent peace index, with the exception of Utah, which is high. I then filtered out all the states(27) that had a higher value of obesity than the median (29.38%). Then, I took the mean and standard deviation of the states in the low, med, and high percent peace index categories. 
+
+#### For my sumamry statistics, I first performed correlation matrices on each of my numeric vairables to each other. After doing so, I saw that there was the highest negative correlation between percent educational attainment and obesity value (-0.7517604) and weakest negative correlation between the percent peace index and obesity value (-0.4201228). I then found the mean and standard deviation of the percentage peace indexes forn each category of the nonreligious category and found that the states with the highest nonreligious percentages had the highest mean and lowest standard deviation of percent peace index. I then compared the 3 categories of the nonreligious variable and the 3 categories of the percent peace index variable and found the mean percentage educational attainment for these. States with the highest nonreligous population and percent peace index showed the highest mean percent educational attainment (31.42857%). Likewise, states with the lowest religious population and percent peace index showed the lowest mean percent educational attainment (22.1%). I then found the min, max, third quartile, median, and variance of all my numeric variables. I also found the mean percentage of the population considered obese for the nation and found it to be 29.376%.  
+```
+
+
+```{R}
+#Tidying: 
+joined%>%group_by(percentpeace_cat, nonreligious_cat)%>%summarise_at("Value", min)%>%pivot_wider(names_from = nonreligious_cat, values_from = Value)
+
+#Because my data was already tidy, I used pivot_wider to group by my two categorical variables (percentpeace_cat and nonreligious_cat). Then, I extracted data from "Value"(percentage considered obese) to my categorical variables. 
+```
+
+```{r}
+#Visualizing
+#Correlation Heatmap
+joined%>%select_if(is.numeric)%>%cor%>%as.data.frame%>%
+  rownames_to_column%>%pivot_longer(-1)%>%
+  ggplot(aes(rowname, name, fill=value))+geom_tile()+
+  geom_text(aes(label=round(value,1)))+
+  xlab("")+ylab("")+
+  theme(axis.text.x = element_text(angle = 90, hjust=1))+
+  scale_fill_gradient2(low="red",high="blue")+
+  ggtitle("Correlation Heatmap")
+## The strongest correlation on my heatmap is the negative correlation between percentage educational attainment and value (-0.8). This shows that the higher the percentage of the population that has a bachelor's degree or higher, the lower the obesity value. I was suprised that this correlation was higher, albeit slightly, than the correlation between percent educational attainment and percent above poverty level (-0.7). 
+
+## Aside from sample size, the variables that had the weakest correlations were the correlations between percent peace index and percent educational attainment (0.4) and percent obese and percent peace index (-0.4). This represents that these is a weak association between one's education level and the peacefulness of the state. Similarily, there is a weak association between the state's peace level and percent obesity of that state. 
+```
+
+```{R}
+ggplot(joined, aes(x=reorder(Location,Value), y= Value, fill=nonreligious_cat))+ theme_linedraw()+
+  geom_bar(stat="summary", fun.y="mean")+
+  scale_fill_discrete()+
+  theme(axis.text.x = element_text(angle = 90, hjust=1, size=6))+
+  ggtitle("Percentage Obese vs. Location vs. Non religious")+
+    scale_y_continuous(breaks = seq(0,36, 3))
+# This bar shows that most of the states with the greatest obesity percentage values have a low percentage of the population that considers themselves nonreligious. Conversely, most of the states with the lowest obesity percentage have a high percentage of the population that considers themselves relgious. Similarly, states with the middle obesity percentage values have middle nonrelgious percentages. The graph also shows Arkansas as having the highest percentage obese value and Colorado having the smallest percentage obese value. 
+```
+
+```{R}
+ggplot(joined, aes(percentpeace,Value, color=nonreligious_cat))+
+  geom_point(size=2)+
+  ggtitle("Percentage Obese vs. Percent Peace Index vs. Non religious")+
+  scale_color_hue()+
+  theme_linedraw()
+# From this scatterplot, no visible trend or correlation is visible between the obestiy percentage and the percent peace index. This implies that the peacefulness of a state is not associated with the percent obesity of the state. However, there is a trend between percent obese and nonreligious percentages. The plot shows that states with a low nonrelgious population typically have a high obesity percentage, and vice versa. Also, there appears to be a small correlation between the nonreligious percentage and percent peace index. States with a low nonreligous percentage typically have a lower peace index and states with a higher percentage of a nonreligious population correlate to a higher peace index, which I found interesting. 
+```
+
+```{r}
+#Dimentionality Reduction
+library(ggplot2)
+library(tidyverse)
+library(cluster)
+#removing categorical variables 
+joined2<-joined%>%select(-Location, -X95..CI, -Sample.Size, -nonreligious_cat,-percentpeace_cat)
+#Cluster analysis 
+pam<-joined2%>%scale%>%pam(k=2)
+pam
+pamclust <- joined2%>%mutate(cluster = as.factor(pam$clustering))
+pamclust%>% ggplot(aes(percentedu_attain, Value, color = cluster)) + geom_point()
+#clusters in PAM
+sil_width<-vector()
+for (i in 2:10) {
+  pamfit<-joined2%>%scale%>%pam(i)
+  sil_width[i]<-pamfit$silinfo$avg.width
+}
+ggplot()+geom_line(aes(x=1:10, y=sil_width))+scale_x_continuous(name ="k",breaks = 1:10)
+#silhouette plot 
+plot(pam, which=2)
+#final medoids 
+joined2[pam$id.med,]
+#visualization of all numeric variables 
+library(GGally)
+joined2 %>% mutate(cluster=as.factor(pam$clustering)) %>% ggpairs(columns = 2:6, aes(color=cluster))
+```
+
+```{R}
+#First, I removed the categorical variables on my data to perfrom a cluster analysis soley on my numeric variables. I determined the number of clusters I should use as 2 (greatest sil_width). Then, I performed a cluster analysis on my data. I also used a silhouette plot to see how well my variables fit into their clusters. My average silhouette width of 0.39, which represetns a weak structure and the potential of artifical data. For my visualization, I ran a ggpairs to compare all my data. From here, we can see that there is the strongest correlation between percent above poverty and percent educational attainment (0.678). The weakest correlation is between the percent peace index and percent educational attainment (0.358). The two distincts clusters in the percent educational attainment and percent peace index show the states with a lower proportion of the population with a bachelor's degree or higher and another cluster with states with a higher proportion of the population with a bachelor's degree. Also, there are two distinct clusters of the percent peace index and percent above the poverty rate. However, there is not distinct cluster for percent above poverty rate and percent nonrelgious. 
+```{R}

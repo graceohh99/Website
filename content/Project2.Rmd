@@ -1,0 +1,409 @@
+---
+title: 'Project 2: Modeling, Testing, and Predicting'
+author: "Grace Oh (geo344)"
+date: ''
+output:
+  word_document:
+    toc: yes
+  pdf_document:
+    toc: yes
+  html_document:
+    toc: yes
+    toc_float:
+      collapsed: no
+      smooth_scroll: yes
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+hook_output = knit_hooks$get('output')
+knit_hooks$set(output = function(x, options) {
+  # this hook is used only when the linewidth option is not NULL
+  if (!is.null(n <- options$linewidth)) {
+    x = knitr:::split_lines(x)
+    # any lines wider than n should be wrapped
+    if (any(nchar(x) > n)) x = strwrap(x, width = n)
+    x = paste(x, collapse = '\n')
+  }
+  hook_output(x, options)
+})
+
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE,fig.align="center",warning=FALSE,message=FALSE,fig.width=8, fig.height=5, linewidth=60)
+options(tibble.width = 100,width = 100)
+library(tidyverse)
+```
+
+# Modeling
+
+## Instructions
+
+A knitted R Markdown document (as a PDF) and the raw R Markdown file (as .Rmd) should both be submitted to Canvas by 11:59pm on 5/1/2020. These two documents will be graded jointly, so they must be consistent (i.e., don’t change the R Markdown file without also updating the knitted document). Knit an html copy too, for later! In the .Rmd file for Project 2, you can copy the first code-chunk into your project .Rmd file to get better formatting. Notice that you can adjust the opts_chunk$set(...) above to set certain parameters if necessary to make the knitting cleaner (you can globally set the size of all plots, etc). You can copy the set-up chunk in Project2.Rmd: I have gone ahead and set a few for you (such as disabling warnings and package-loading messges when knitting)! 
+
+Like before, I envision your written text forming something of a narrative structure around your code/output. All results presented must have corresponding code. Any answers/results/plots etc. given without the corresponding R code that generated the result will not be graded. Furthermore, all code contained in your final project document should work properly. Please do not include any extraneous code or code which produces error messages. (Code which produces warnings is acceptable, as long as you understand what the warnings mean).
+
+## Find data:
+
+Find one dataset with at least 5 variables that wish to use to build models. At least one should be categorical (with 2-5 groups) and at least two should be numeric. Ideally, one of your variables will be binary (if not, you will need to create one by discretizing a numeric, which is workable but less than ideal). You will need a minimum of 40 observations (*at least* 10 observations for every explanatory variable you have, ideally 20+ observations/variable).
+
+It is perfectly fine to use either dataset (or the merged dataset, or a subset of your variables) from Project 1. However, you could also diversify your portfolio a bit by choosing a different dataset to work with (particularly if the variables did not reveal interesting associations in Project 1). The only requirement/restriction is that you may not use data from any examples we have done in class or lab. It would be a good idea to pick more cohesive data this time around (i.e., variables that you actually thing might have a relationship you would want to test). Think more along the lines of your Biostats project.
+
+Again, you can use data from anywhere you want (see bottom for resources)! If you want a quick way to see whether a built-in (R) dataset has binary and/or character (i.e., categorical) variables, check out this list: https://vincentarelbundock.github.io/Rdatasets/datasets.html.
+
+
+## Guidelines and Rubric
+
+- **0. (5 pts)** Introduce your dataset and each of your variables (or just your main variables if you have lots) in a paragraph. What are they measuring? How many observations?
+```{r}
+insurance<-read.csv("insurance (1).csv")
+glimpse(insurance)
+
+#The dataset that I chose is the "insurance" dataset. This dataset has 187 observations and explores the individual medical costs billed by insurance companies or the "charges" variable. My other variable includes "age", which is the age of the insurance holder, "sex", which is the sex of the insurance holder, "bmi", bmi of the insurance holder, "children", the number of children/dependents under the insurance holder, "smoker", which is whether the insurance holder smokes or not, and "region", which is the region (either Northeast/west or Southeast/west) of the insurance holder. I was interested in this dataset because of the COVID-19 pandemic and how South Korea was dealing with it was fascinating to me. I knew it was because they had universal, free healthcare, something that we do not have in the States. My goal is to see which factors really rack up the costs of medical bills from these variables. 
+```
+
+- **1. (15 pts)** Perform a MANOVA testing whether any of your numeric variables (or a subset of them, if including them all doesn't make sense) show a mean difference across levels of one of your categorical variables (3). If they do, perform univariate ANOVAs to find response(s) showing a mean difference across groups (3), and perform post-hoc t tests to find which groups differ (3). Discuss the number of tests you have performed, calculate the probability of at least one type I error (if unadjusted), and adjust the significance level accordingly (bonferroni correction) before discussing significant differences (3). Briefly discuss assumptions and whether or not they are likely to have been met (2).
+```{r}
+#MANOVA testing whether DVs (BMI, insurance charges) show a mean difference across regions. 
+man1<-manova(cbind(bmi,charges)~region, data=insurance)
+summary(man1)
+#Our small pvalue of 0.01997 indicates that we can reject our null hypothesis and that either BMI or insurance charges differ by region. 
+
+#Univariate ANONAs
+summary.aov(man1)
+#After running univariate ANOVAs, we can see that BMI differs by at least one region (pvalue of 0.002387) but insurance charges do not differ by region (pvalue of 0.5377). 
+
+#Post-hoc t-test to determine where BMI differs
+pairwise.t.test(insurance$bmi, insurance$region, p.adj="none")
+
+#Adjusting significance level (bonferroni correcction)
+0.05/7
+
+#Calculating probability of Type1 error:
+(1-0.95^7)
+```
+
+```{r}
+##A MANOVA was conducted to see whether my DVs (BMI, insurance charges) differed by region. The result rejected the null hypothesis so I conducted univariate ANOVAs to see which DV differed by region. The results showed that only BMI differed by region, so I conducted post-hoc t-tests. I had to adjust my significant level, and my new significant level is 0.007142857. With the new significant level, BMI differs signifcantly between the northeast and southeast regions (0.0035), and between northwest and the southeast regions (0.005). The probability of Type1 error is 0.3016627. 
+#There are many MANOVA assumptions, and they are usually hard to meet. We can assume that my data is a random sample and independent observations. To test multivariate normality of the dependent variables, we can assume they are normal because there is more than 25 observations for each group. We can assume homogeneity of within group covariance matricies. We can assume there is a linear relationship between my DVs because with a higher BMI, we can assume there will be more health complications, racking up charges. We cannot assume that there are not extreme univariate or multivariate oultiers. We also cannot assume that the DVs are not too correlated. 
+```
+
+- **2. (10 pts)** Perform some kind of randomization test on your data (that makes sense). This can be anything you want! State null and alternative hypotheses, perform the test, and interpret the results (7). Create a plot visualizing the null distribution and the test statistic (3).
+```{r}
+#H0: The mean BMI for the regions are equal.
+#Ha: At least one region differs in BMI.
+
+#observed F-statistic from univariate ANOVA 
+obs_F<-4.9866
+
+#conducting randomization test 
+Fs<-replicate(5000,{
+  new<-insurance%>%mutate(bmi=sample(bmi))
+
+  SSW<- new%>%group_by(region)%>%summarise(SSW=sum((bmi-mean(bmi))^2))%>%summarize(sum(SSW))%>%pull
+  SSB<-new%>%mutate(mean=mean(bmi))%>%group_by(region)%>%mutate(groupmean=mean(bmi))%>%summarise(SSB=sum((mean-groupmean)^2))%>%summarise(sum(SSB))%>%pull
+  (SSB/3)/(SSW/183)
+})
+
+hist(Fs, prob=T);abline(v=obs_F, col="red", add=T)
+mean((Fs>obs_F))
+```
+
+```{r}
+#After conducting the randomization test, we see that 0.0024 of our F statistics generated under the null hypothesis are bigger than our actual F statistic of 4.9866. This means that we can still reject the null hypothesis and conclude that the regions differ in BMI. 
+```
+
+- **3. (35 pts)** Build a linear regression model predicting one of your response variables from at least 2 other variables, including their interaction. Mean-center any numeric variables involved in the interaction.
+    - Interpret the coefficient estimates (do not discuss significance) (10)
+    - Plot the regression using `ggplot()`. If your interaction is numeric by numeric, refer to code near the end of WS15 to make the plot. If you have 3 or more predictors, just chose two to plot for convenience. (8)
+    - Check assumptions of linearity, normality, and homoskedasticity either graphically or using a hypothesis test (4)
+    - Regardless, recompute regression results with robust standard errors via `coeftest(..., vcov=vcovHC(...))`. Discuss significance of results, including any changes from before/after robust SEs if applicable. (8)
+    - What proportion of the variation in the outcome does your model explain? (4)
+```{r}
+library(lmtest)
+library(sandwich)
+#Mean centering BMI
+mean(insurance$bmi)
+insurance$bmi_c<-insurance$bmi-mean(insurance$bmi)
+#Linear Regression Model 
+fit<-lm(charges~smoker*bmi_c, data=insurance)
+summary(fit)
+
+#Plotting the regression
+newdat<-insurance
+newdat$bmi<-c(seq(0,60,length.out=186),mean(insurance$bmi))
+newdat$smoker<-rep("yes",length(newdat$smoker))
+newdat$pred1<-predict(fit,newdat)
+newdat$smoker<-rep("no",length(newdat$smoker))
+newdat$pred2<-predict(fit,newdat)
+insurance$bmi_c<-insurance$bmi_c
+
+ggplot(insurance, aes(x = bmi_c, y = charges, color=smoker)) +
+    geom_point()+geom_smooth(method="lm")
+
+#Checking Assumptions
+#Linearity 
+ggplot(insurance, aes(x=bmi, y=charges))+geom_point()
+
+#Normaliy  
+resids<-lm(charges~bmi, data=insurance)$residuals
+ggplot()+geom_histogram(aes(resids), bins=10)
+##After making a histogram, we can see the data is skewed to the right
+fitted<-lm(charges~bmi, data=insurance)$fitted.values
+ggplot()+geom_point(aes(resids, fitted))
+##Not much randomization suggests that this data fails to meet the normality assumption. 
+#Formally testing normality
+ks.test(resids, "pnorm", mean=0, sd(resids))
+resids<-fit$residuals
+##Formal test (KS test) shows that we reject the null hypothesis, data is not normal. 
+
+#Homoskedasaticity
+#Breusch-Pagan (bp) test to assess homoskedasticity
+bptest(fit)
+##Results of bp test show that we cannot reject null hypothesis, and can assume homoskedasticity assumption is met
+#Plot to assess homoskedasticity 
+resids<-fit$residuals
+fitvals<-fit$fitted.values
+ggplot()+geom_point(aes(fitvals, resids))+geom_hline(yintercept = 0, color='red')
+ggplot()+geom_qq(aes(sample=resids))+geom_qq_line(aes(sample=resids))
+ggplot(insurance, aes(charges,bmi, color=smoker))+geom_point()
+
+#Recomputing regression with robust standard errors
+#uncorrected SE
+summary(fit)
+#corrected SE
+coeftest(fit, vcov=vcovHC(fit))
+```
+
+```{r}
+#When interacting [centered] BMI with smoking status, we see that the intercept is 7871.255. This means that for nonsmokers with an average BMI, the insurance cost is 7871.255. For "smokeryes", smokers with an average BMI, have a higher insurance cost (23850.160 higher) than those who are nonsmokers. We also see that depending on smoking status, BMI has an effect on the insurance charges (1459.4 higher for smokers). We also see that nonsmokers have a 12.680 decrease in insurance charges for every 1 unit increase in BMI. The proporation of variation in the outcome explained by the overall model is the multiple R-squared:0.7551 (Adjusted R-squared:  0.7511). That means that about 75.51% of the variation in insurance charges can be explained by smoking status and BMI. 
+#After correcting the SE, the standard error of the intercept decreased from 528.44 to 515.181 The SE of "smokeryes" increased from 1077.79 to 1182.755. The SE of "bmi_c" decreased from 95.25 to 93.25 The "smokeryes:bmi_c" increased from 181.24 to 233.84. After correcting the SE, our "smokeryes" and "smokeryes:bmi_c" increased slightly, while the SE's of the intercept and "bmi_c" decreased. The increase is due to slight flaring in our data, not enough to reject the null hypothesis of homoskedasicity but enough to increase the robust SE. Conversely, the decrease is due to the error decreasing when some of our data is far from the mean. After correcting the SE, all previous signficant variables remained significant. 
+``` 
+
+- **4. (5 pts)** Rerun same regression model (with interaction), but this time compute bootstrapped standard errors. Discuss any changes you observe in SEs and p-values using these SEs compared to the original SEs and the robust SEs)
+```{r}   
+#Bootstrapped SE
+boot_insurance<-sample_frac(insurance, replace = T)
+samp_distn<-replicate(5000, {
+  boot_insurance<-sample_frac(insurance, replace = T)
+  fit<-lm(charges~smoker*bmi_c, data=boot_insurance)
+  coef(fit)
+})
+samp_distn%>%t%>%as.data.frame%>%summarise_all(sd)
+```
+
+```{r}
+#After running our regression model with bootstrapped SE, we see that our SE for the intercept and "bmi_c" decreased more than the original and robust SE. Our "smokeryes" and interaction shows SEs that are in between our original and the robust SE. When treating our data sample as the population and running it 5000 times, the SE decreased because there is more precision and less variance around the mean. With more sampling, the p value will be more precise, and thus decrease, since the effects of random error will be mitigated. 
+```
+
+- **5. (40 pts)** Perform a logistic regression predicting a binary categorical variable (if you don't have one, make/get one) from at least two explanatory variables (interaction not necessary). 
+    - Interpret coefficient estimates in context (10)
+    - Report a confusion matrix for your logistic regression (2)
+    - Compute and discuss the Accuracy, Sensitivity (TPR), Specificity (TNR), and Recall (PPV) of your model (5)
+    - Using ggplot, plot density of log-odds (logit) by your binary outcome variable (3)
+    - Generate an ROC curve (plot) and calculate AUC (either manually or with a package); interpret (10)
+    - Perform 10-fold (or repeated random sub-sampling) CV and report average out-of-sample Accuracy, Sensitivity, and Recall (10)
+
+```{r}
+#Logistic Regression
+insurance<-insurance%>%mutate(y=ifelse(smoker=="yes",1,0))
+fit2<-glm(y~charges+age, family="binomial", data=insurance)
+coeftest(fit2)
+exp(coef(fit2))
+#Confusion Matrix
+prob<-predict(fit2, type="response")
+pred<-ifelse(prob>.5,1,0)
+table(predection=pred, truth=insurance$smoker)%>%addmargins
+#Accuracy:
+(134+39)/187
+#TPR (sensitivity)
+(39/45)
+#TNR (specificity)
+(134/142)
+#Precision
+(39/47)
+#Density of logodds
+insurance$logit<-predict(fit2) #get predicted log-odds
+insurance$smoker<-factor(insurance$smoker,levels=c("yes","no"))
+ggplot(insurance,aes(logit, fill=smoker))+geom_density(alpha=.3)+
+  geom_vline(xintercept=0,lty=2)
+#ROC curve
+library(plotROC)
+ROCplot<-ggplot(insurance)+geom_roc(aes(d=y, m=prob), n.cuts=0)
+ROCplot
+#AUC
+calc_auc(ROCplot)
+
+#K-fold CV
+class_diag<-function(probs,truth){
+  
+  if(is.numeric(truth)==FALSE & is.logical(truth)==FALSE) truth<-as.numeric(truth)-1
+  
+  tab<-table(factor(probs>.5,levels=c("FALSE","TRUE")),truth)
+  prediction<-ifelse(probs>.5,1,0)
+  acc=mean(truth==prediction)
+  sens=mean(prediction[truth==1]==1)
+  spec=mean(prediction[truth==0]==0)
+  ppv=mean(truth[prediction==1]==1)
+  
+  #CALCULATE EXACT AUC
+  ord<-order(probs, decreasing=TRUE)
+  probs <- probs[ord]; truth <- truth[ord]
+  
+  TPR=cumsum(truth)/max(1,sum(truth)) 
+  FPR=cumsum(!truth)/max(1,sum(!truth))
+  
+  dup<-c(probs[-1]>=probs[-length(probs)], FALSE)
+  TPR<-c(0,TPR[!dup],1); FPR<-c(0,FPR[!dup],1)
+  
+  n <- length(TPR)
+  auc<- sum( ((TPR[-1]+TPR[-n])/2) * (FPR[-1]-FPR[-n]) )
+
+  data.frame(acc,sens,spec,ppv,auc)
+}
+
+k=10
+
+data <- insurance[sample(nrow(insurance)),]
+folds <- cut(seq(1:nrow(insurance)), breaks = k, labels = F)
+
+diags<-NULL
+for(i in 1:k){
+  train <- data[folds!=i,] 
+  test <- data[folds==i,] 
+  truth <- test$y 
+  
+  fit2<-glm(y~charges+age, data=train, family="binomial")
+  probs <- predict(fit2, newdata=test, type="response")
+  
+  diags<-rbind(diags,class_diag(probs,truth))
+}
+
+summarize_all(diags,mean)
+```
+
+```{r}
+#After running my logisitic regression, and exponentiating the coefficients, we see that for the odds of being a smoker with an age of 0 and charges of 0 is 0.1024886 ("Intercept", significant). Controlling for age, we see that for every one unit increase in charges, odds of being a smoker increase by a factor of 1.0003361 ("charges", significant). Controlling for charges, we see that for one additional increase in age, odds of being a smoker increase by a factor of 0.8942953 ("age", significant). 
+#The accuracy is 0.9251337, the sensitivity is 0.867, the specificity is 0.943662, the precision is 0.8297872.The AUC is 0.9796557, which is the area under my ROC curve. Because the ROC plots the TPR against the FPR, and my auc was close to 1, we can assume that we are doing a pretty good job at predicting smoking status from my two variables (charges and age). After performing a K-folds cross validation, the accuracy decreased to 0.9146199, the sensitivity decreased to 0.815, the specificity decreased to 0.9427961, the precision increased to 0.8335714, and the AUC increased to 0.9840293. Though our out of sample performance decreased, it only decreased a little bit and there is still a high AUC. Nonetheless, because our AUC decreased, we are overfitting.
+```
+
+- **6. (10 pts)** Choose one variable you want to predict (can be one you used from before; either binary or continuous) and run a LASSO regression inputting all the rest of your variables as predictors. Choose lambda to give the simplest model whose accuracy is near that of the best (i.e., `lambda.1se`). Discuss which variables are retained. Perform 10-fold CV using this model: if response in binary, compare model's out-of-sample accuracy to that of your logistic regression in part 5; if response is numeric, compare the residual standard error (at the bottom of the summary output, aka RMSE): lower is better fit!
+
+```{r}
+#LASSO regression
+library(glmnet)
+newinsurance<- insurance[-c(5,10)]
+y<-as.matrix(newinsurance$y)
+x<-model.matrix(y~.,data = newinsurance)[,-1]
+x<-scale(x)
+head(x)
+cv<-cv.glmnet(x,y, family="binomial")
+lasso<-glmnet(x,y, family="binomial", lambda = cv$lambda.min)
+coef(lasso)
+#CV on Lasso Model
+class_diag<-function(probs,truth){
+  
+  if(is.numeric(truth)==FALSE & is.logical(truth)==FALSE) truth<-as.numeric(truth)-1
+  
+  tab<-table(factor(probs>.5,levels=c("FALSE","TRUE")),truth)
+  prediction<-ifelse(probs>.5,1,0)
+  acc=mean(truth==prediction)
+  sens=mean(prediction[truth==1]==1)
+  spec=mean(prediction[truth==0]==0)
+  ppv=mean(truth[prediction==1]==1)
+  
+  #CALCULATE EXACT AUC
+  ord<-order(probs, decreasing=TRUE)
+  probs <- probs[ord]; truth <- truth[ord]
+  
+  TPR=cumsum(truth)/max(1,sum(truth)) 
+  FPR=cumsum(!truth)/max(1,sum(!truth))
+  
+  dup<-c(probs[-1]>=probs[-length(probs)], FALSE)
+  TPR<-c(0,TPR[!dup],1); FPR<-c(0,FPR[!dup],1)
+  
+  n <- length(TPR)
+  auc<- sum( ((TPR[-1]+TPR[-n])/2) * (FPR[-1]-FPR[-n]) )
+
+  data.frame(acc,sens,spec,ppv,auc)
+}
+
+k=10
+
+data2 <- newinsurance[sample(nrow(newinsurance)),]
+folds2 <- cut(seq(1:nrow(newinsurance)), breaks = k, labels = F)
+
+diags2<-NULL
+for(i in 1:k){
+  train2 <- data2[folds2!=i,] 
+  test2 <- data2[folds2==i,] 
+  truth2 <- test2$y 
+  
+  fit3<-glm(y~charges+age+region+children+bmi, data=train2, family="binomial")
+  probs2 <- predict(fit3, newdata=test2, type="response")
+  
+  diags2<-rbind(diags2,class_diag(probs2,truth2))
+}
+
+summarize_all(diags2,mean)
+```
+
+```{r}
+#After perfoming the LASSO, we see that the most predicitive variables for smoker status is age, bmi, number of children, charges, and region (southeast, southwest, southwest). 
+#After cross validating the Lasso model, we see the best results in predicting smoker status. After taking out sex, which showed to not be a strong indicator of smoker status, the auc increased as compared to the logistic regression model. We also see that the accuracy, sensitivity, specificity, and precision also increased as compared to our logisitc regression model. 
+```
+
+
+## Where do I find data again?
+
+You can choose ANY datasets you want that meet the above criteria for variables and observations. You can make it as serious as you want, or not, but keep in mind that you will be incorporating this project into a portfolio webpage for your final in this course, so choose something that really reflects who you are, or something that you feel will advance you in the direction you hope to move career-wise, or something that you think is really neat, or whatever. On the flip side, regardless of what you pick, you will be performing all the same tasks, so it doesn't end up being that big of a deal.
+
+If you are totally clueless and have no direction at all, log into the server and type 
+
+```{R eval=F}
+data(package = .packages(all.available = TRUE))
+```
+
+This will print out a list of **ALL datasets in ALL packages** installed on the server (a ton)! Scroll until your eyes bleed! Actually, do not scroll that much... To start with something more manageable, just run the command on your own computer, or just run `data()` to bring up the datasets in your current environment. To read more about a dataset, do `?packagename::datasetname`. 
+
+If it is easier for you, and in case you don't have many packages installed, a list of R datasets from a few common packages (also downloadable in CSV format) is given at the following website: https://vincentarelbundock.github.io/Rdatasets/datasets.html.
+
+- A good package to download for fun/relevant data is `fivethiryeight`. 
+Run `install.packages("fivethirtyeight"),` load the packages with `library(fivethirtyeight)`, run `data()`, and then scroll down to view the datasets. Here is an online list of all 127 datasets (with links to the 538 articles). Lots of sports, politics, current events, etc.
+
+- If you have already started to specialize (e.g., ecology, epidemiology) you might look at discipline-specific R packages (vegan, epi, respectively). We will be using some tools from these packages later in the course, but they come with lots of data too, which you can explore according to the directions above
+
+- However, you *emphatically DO NOT* have to use datasets available via R packages! In fact, I would much prefer it if you found the data from completely separate sources and brought them together (a much more realistic experience in the real world)! You can even reuse data from your SDS328M project, provided it shares a variable in common with other data which allows you to  merge the two together (e.g., if you still had the timestamp, you could look up the weather that day: https://www.wunderground.com/history/). If you work in a research lab or have access to old data, you could potentially merge it with new data from your lab!
+
+- Here is a curated list of interesting datasets (read-only spreadsheet format): https://docs.google.com/spreadsheets/d/1wZhPLMCHKJvwOkP4juclhjFgqIY8fQFMemwKL2c64vk/edit
+
+- Here is another great compilation of datasets: https://github.com/rfordatascience/tidytuesday
+
+- Here is the UCI Machine Learning Repository: https://archive.ics.uci.edu/ml/index.php
+
+    - See also https://en.wikipedia.org/wiki/List_of_datasets_for_machine-learning_research#Biological_data
+
+- Here is another good general place to look: https://www.kaggle.com/datasets
+
+- To help narrow your search down or to see interesting variable ideas, check out https://www.tylervigen.com/spurious-correlations. This is the spurious correlations website, and it is fun, but if you look at the bottom of each plot you will see sources for the data. This is a good place to find very general data (or at least get a sense of where you can scrape data together from)!
+
+- If you are interested in medical data, check out www.countyhealthrankings.org
+
+- If you are interested in scraping UT data, they make *loads* of data public (e.g., beyond just professor CVs and syllabi). Check out all the data that is available in the statistical handbooks: https://reports.utexas.edu/statistical-handbook
+
+##### Broader data sources:
+
+[Data.gov](www.data.gov) 186,000+ datasets!
+
+[Social Explorer](Social Explorer) is a nice interface to Census and American Community Survey data (more user-friendly than the government sites). May need to sign up for a free trial.
+
+[U.S. Bureau of Labor Statistics](www.bls.gov)
+
+[U.S. Census Bureau](www.census.gov)
+
+[Gapminder](www.gapminder.org/data), data about the world.
+
+...
+
+
+
+
+
