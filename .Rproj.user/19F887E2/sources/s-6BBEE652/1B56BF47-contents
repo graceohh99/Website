@@ -5,3 +5,10 @@ blogdown::install_hugo()
 blogdown::new_site(theme="nurlansu/hugo-sustain")
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
 homebrew$ brew install git
+cd ~/Desktop/R final project/Website/Website/Project 1.Rmd #if you haven't already
+
+git init #initialize local git respository
+git add . #add all files in repository to be uploaded
+git commit -m "first website commit"
+git remote add origin https://github.com/USERNAME/WEBSITE_REPOSITORY.git #re
+git push origin master
